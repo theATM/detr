@@ -31,6 +31,9 @@ def get_args_parser():
     # Model parameters
     parser.add_argument('--frozen_weights', type=str, default=None,
                         help="Path to the pretrained model. If set, only the mask head will be trained")
+    parser.add_argument('--load_weights', type=str, default=None,
+                        help="Path to the pretrained model.")
+
     # * Backbone
     parser.add_argument('--backbone', default='resnet50', type=str,
                         help="Name of the convolutional backbone to use")
@@ -55,6 +58,8 @@ def get_args_parser():
     parser.add_argument('--num_queries', default=100, type=int,
                         help="Number of query slots")
     parser.add_argument('--pre_norm', action='store_true')
+    parser.add_argument("--freeze", dest='freeze', type=int, default=None,
+                        help="Enable some weights freezing.")
 
     # * Segmentation
     parser.add_argument('--masks', action='store_true',
@@ -83,6 +88,9 @@ def get_args_parser():
     parser.add_argument('--coco_path', type=str)
     parser.add_argument('--coco_panoptic_path', type=str)
     parser.add_argument('--remove_difficult', action='store_true')
+    parser.add_argument('--year', '-y', type=str, default='', required=False,
+                        help='if using coco please specify the year (2014 or 2017)')
+    parser.add_argument('--classes', type=int, default=91)
 
     parser.add_argument('--output_dir', default='',
                         help='path where to save, empty for no saving')
@@ -164,9 +172,38 @@ def main(args):
     else:
         base_ds = get_coco_api_from_dataset(dataset_val)
 
-    if args.frozen_weights is not None:
+    if args.load_weights is not None:
+        checkpoint = torch.load(args.load_weights, map_location='cpu')
+        # Filter differently shaped weights:
+        filtered = [k for k in model_without_ddp.state_dict() if
+                    (model_without_ddp.state_dict()[k].shape == checkpoint['model'][k].shape) == False]
+        for filtr in filtered:
+            print(
+                f"Omitted loading the {filtr} as the weight shape mismatch: {checkpoint['model'][filtr].shape} != {model_without_ddp.state_dict()[filtr].shape}")
+            checkpoint['model'].pop(filtr)
+        model_without_ddp.load_state_dict(checkpoint['model'],strict=False)
+
+    elif args.frozen_weights is not None:
         checkpoint = torch.load(args.frozen_weights, map_location='cpu')
         model_without_ddp.detr.load_state_dict(checkpoint['model'])
+
+    if args.freeze is not None: # freeze backbone and unfreeze others
+        # Freeze
+        freeze = [f'backbone.0.body.layer{x}' for x in
+                  range(args.freeze)]  # max 4  - layers to freeze
+        freeze.extend(['backbone.0.body.conv1.weight','backbone.0.body.bn1.weight','backbone.0.body.bn1.bias','backbone.0.body.bn1.running_mean','backbone.0.body.bn1.running_var'])
+
+        #Freeze some transformer layers
+        freeze.extend([f'transformer.encoder.layers.{x}' for x in range(4)]) # max 5 layers of encoder
+        freeze.extend([f'transformer.decoder.layers.{x}' for x in range(4)])  # max 5 layers of decoder
+
+        # apply freezing and unfreeze all other weights:
+        for k, v in model_without_ddp.named_parameters():
+            v.requires_grad = True  # train all layers
+            if any(x in k for x in freeze):
+                print(f'freezing {k}')
+                v.requires_grad = False
+
 
     output_dir = Path(args.output_dir)
     if args.resume:
@@ -227,9 +264,10 @@ def main(args):
             # for evaluation logs
             if coco_evaluator is not None:
                 (output_dir / 'eval').mkdir(exist_ok=True)
+                # save the model:
                 if "bbox" in coco_evaluator.coco_eval:
                     filenames = ['latest.pth']
-                    if epoch % 50 == 0:
+                    if epoch % 5 == 0:
                         filenames.append(f'{epoch:03}.pth')
                     for name in filenames:
                         torch.save(coco_evaluator.coco_eval["bbox"].eval,
