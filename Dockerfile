@@ -8,6 +8,6 @@ RUN apt-get update -qq && \
 
 RUN pip --no-cache-dir install Cython
 
-COPY requirements.txt /workspace
+COPY requirements_default.txt /workspace
 
-RUN pip --no-cache-dir install -r /workspace/requirements.txt
+RUN pip --no-cache-dir install -r /workspace/requirements_default.txt
