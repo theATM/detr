@@ -1,0 +1,29 @@
+# Trying to make rocm faster
+FROM ghcr.io/evshiron/rocm_lab:rocm5.5.1-ub22.04-base
+
+RUN apt-get update
+RUN apt-get -y install git python3-pip python3-venv
+
+# Install pytorch (15.7.23)
+#RUN python3 -m pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm5.5
+
+COPY /pytorch22 /pytorch_arch
+
+RUN python3 -m pip install --pre /pytorch_arch/torch-2.1.0.dev20230726+rocm5.5-cp310-cp310-linux_x86_64.whl
+RUN python3 -m pip install --pre /pytorch_arch/torchvision-0.16.0.dev20230727+rocm5.5-cp310-cp310-linux_x86_64.whl
+RUN python3 -m pip install --pre /pytorch_arch/torchaudio-2.1.0.dev20230727+rocm5.5-cp310-cp310-linux_x86_64.whl
+#RUN python3 -m pip install --pre torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/rocm5.5
+
+
+
+ENV HSA_OVERRIDE_GFX_VERSION=11.0.0
+ENV HIP_VISIBLE_DEVICES=0
+
+
+WORKDIR /project
+
+COPY rocm_requirements.txt /project/rocm_requirements.txt
+
+RUN python3 -m pip install -r /project/rocm_requirements.txt
+RUN git config --global --add safe.directory /opt/project
+

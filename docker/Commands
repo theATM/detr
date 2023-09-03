@@ -1,0 +1,5 @@
+# TO launch in rocm env
+docker build -t detr -f Rocmfile .
+
+# To run container interactively:
+docker run -it --cap-add=SYS_PTRACE --security-opt seccomp=unconfined --device=/dev/kfd --device=/dev/dri --group-add video --ipc=host --shm-size 8G detr:latest
