@@ -3,6 +3,8 @@
 
 A custom version of DETR with working docker and layer freezing implementation. 
 
+It is a part of the AirDetection study. The Main repo can be found [under this link](https://github.com/theATM/AirDetection).
+
 The main challenges
 to DETR training are the very slow nature of transformer training and the increased memory usage
 resulting if not controlled in the termination of the training process.
