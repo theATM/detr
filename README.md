@@ -15,6 +15,10 @@ Use Dockerfile to build the environment. Prepare Dataset in COCO format and foll
 
 ## Results
 
+![DetrD](https://github.com/user-attachments/assets/3b5f53de-a4f9-438b-974d-512d9ff048fd)
+
+
+
 ## Models
 
 * Best Pretrained Model [D5](https://drive.google.com/file/d/1G84ybh_JvDLgcF-1OWM2ge63e3fCoESb/view?usp=sharing) 
